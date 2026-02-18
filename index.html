@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Tolerance Acceptance Checker</title>
+</head>
+<body>
+
+<h2>Tolerance Acceptance Checker (±)</h2>
+
+<label>Access Code:</label><br>
+<input id="code"><br><br>
+
+<label>Nominal Value:</label><br>
+<input id="nominal"><br><br>
+
+<label>Measured Value:</label><br>
+<input id="measured"><br><br>
+
+<label>Tolerance (±):</label><br>
+<input id="tol"><br><br>
+
+<label>
+  <input type="checkbox" id="inclusive" checked>
+  Inclusive boundaries
+</label><br><br>
+
+<button onclick="onCheckClick()">Check Acceptance</button>
+
+<pre id="result"></pre>
+
+<script>
+const round = (x) => Math.round(x * 1000000) / 1000000;
+const API_URL = "https://script.google.com/macros/s/AKfycbwOApGnmWBTmSaT04aLQAvEbut11jAFLAgqA-HY2cScUD_uFB2ZOP_8nRNfipOw6fdU/exec";
+const API_KEY = "r9K3ZP2A8fLQXwM7D1k2Vn8Pp4sT6yZ";
+
+function validateInputs(N, M, T) {
+  if (!Number.isFinite(N)) return "Nominal value is invalid";
+  if (!Number.isFinite(M)) return "Measured value is invalid";
+  if (!Number.isFinite(T) || T <= 0) return "Tolerance must be > 0";
+  return null;
+}
+
+function checkAcceptance(N, M, T, inclusive) {
+  const lower = N - T;
+  const upper = N + T;
+
+  const pass = inclusive ? (M >= lower && M <= upper) : (M > lower && M < upper);
+
+  if (pass) {
+    const margin = round(Math.min(M - lower, upper - M));
+    return { decision: "PASS", detail: `Within tolerance by ${margin}`, lower, upper };
+  } else {
+    const exceed = round((M > upper) ? (M - upper) : (lower - M));
+    const side = (M > upper) ? "upper" : "lower";
+    return { decision: "FAIL", detail: `Exceeds ${side} tolerance by ${exceed}`, lower, upper };
+  }
+}
+
+async function consumeCredit(code) {
+  // IMPORTANT: text/plain avoids CORS preflight
+  const res = await fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=UTF-8" },
+    body: JSON.stringify({
+      action: "consume",
+      code: code,
+      apiKey: API_KEY
+    })
+  });
+  return await res.json();
+}
+
+async function onCheckClick() {
+  const code = document.getElementById("code").value.trim();
+  const N = Number(document.getElementById("nominal").value);
+  const M = Number(document.getElementById("measured").value);
+  const T = Number(document.getElementById("tol").value);
+  const inclusive = document.getElementById("inclusive").checked;
+
+  const err = validateInputs(N, M, T);
+  if (err) {
+    alert(err);
+    return;
+  }
+
+  let credit;
+  try {
+    credit = await consumeCredit(code);
+  } catch (e) {
+    alert("Request failed. Open Console for details.");
+    return;
+  }
+
+  if (!credit.ok) {
+    alert(credit.error || "No credits remaining");
+    return;
+  }
+
+  const out = checkAcceptance(N, M, T, inclusive);
+
+  document.getElementById("result").innerText =
+    `${out.decision}\n${out.detail}\nAllowed range: ${out.lower} to ${out.upper}\nCredits left: ${credit.credits_remaining}`;
+}
+
+
+</script>
+
+</body>
+</html>
+<hr>
+<h3>Need More Checks?</h3>
+<p>50 additional tolerance checks — $10</p>
+<p>After payment, your access code will be emailed within 24 hours.</p>
+
+<a href="https://buy.stripe.com/00wcN41LwaywcV8gkX9MY00" target="_blank">
+  Buy 50 Checks
+</a>

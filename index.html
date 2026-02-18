@@ -82,38 +82,15 @@
 </div>
   
 <script>
+const API_URL = "PASTE_YOUR_WEB_APP_URL_HERE";   // must end in /exec
+const API_KEY = "PASTE_YOUR_API_KEY_HERE";
+
 const round = (x) => Math.round(x * 1000000) / 1000000;
-const API_URL = "https://script.google.com/macros/s/AKfycbwOApGnmWBTmSaT04aLQAvEbut11jAFLAgqA-HY2cScUD_uFB2ZOP_8nRNfipOw6fdU/exec";
-const API_KEY = "r9K3ZP2A8fLQXwM7D1k2Vn8Pp4sT6yZ";
-
-function validateInputs(N, M, T) {
-  if (!Number.isFinite(N)) return "Nominal value is invalid";
-  if (!Number.isFinite(M)) return "Measured value is invalid";
-  if (!Number.isFinite(T) || T <= 0) return "Tolerance must be > 0";
-  return null;
-}
-
-function checkAcceptance(N, M, T, inclusive) {
-  const lower = N - T;
-  const upper = N + T;
-
-  const pass = inclusive ? (M >= lower && M <= upper) : (M > lower && M < upper);
-
-  if (pass) {
-    const margin = round(Math.min(M - lower, upper - M));
-    return { decision: "PASS", detail: `Within tolerance by ${margin}`, lower, upper };
-  } else {
-    const exceed = round((M > upper) ? (M - upper) : (lower - M));
-    const side = (M > upper) ? "upper" : "lower";
-    return { decision: "FAIL", detail: `Exceeds ${side} tolerance by ${exceed}`, lower, upper };
-  }
-}
 
 async function consumeCredit(code) {
-  // IMPORTANT: text/plain avoids CORS preflight
   const res = await fetch(API_URL, {
     method: "POST",
-    headers: { "Content-Type": "text/plain;charset=UTF-8" },
+    headers: { "Content-Type": "text/plain;charset=UTF-8" }, // avoids preflight
     body: JSON.stringify({
       action: "consume",
       code: code,
@@ -123,39 +100,78 @@ async function consumeCredit(code) {
   return await res.json();
 }
 
-async function onCheckClick() {
-  const code = document.getElementById("code").value.trim();
-  const N = Number(document.getElementById("nominal").value);
-  const M = Number(document.getElementById("measured").value);
-  const T = Number(document.getElementById("tol").value);
-  const inclusive = document.getElementById("inclusive").checked;
+function validateInputs(acc, res, rep, k) {
+  if (!Number.isFinite(acc) || acc <= 0) return "Accuracy must be > 0";
+  if (!Number.isFinite(res) || res <= 0) return "Resolution must be > 0";
+  if (rep !== null && (!Number.isFinite(rep) || rep < 0)) return "Repeatability must be >= 0 (or blank)";
+  if (!Number.isFinite(k) || k <= 0) return "Coverage factor k must be > 0";
+  return null;
+}
 
-  const err = validateInputs(N, M, T);
-  if (err) {
-    alert(err);
-    return;
-  }
+// Practical, defensible approach:
+// accuracy and resolution treated as rectangular distributions
+function calcUncertainty(acc, res, rep, k) {
+  const uAcc = acc / Math.sqrt(3);
+  const uRes = res / Math.sqrt(12);
+  const uRep = rep ?? 0;
+
+  const uc = Math.sqrt(uAcc*uAcc + uRes*uRes + uRep*uRep);
+  const U = k * uc;
+
+  return { uAcc, uRes, uRep, uc, U };
+}
+
+async function onCheckClick() {
+  const resultEl = document.getElementById("result");
+  if (!resultEl) { alert("Missing result element"); return; }
+
+  const code = document.getElementById("code")?.value.trim() || "";
+
+  const acc = Number(document.getElementById("accuracy")?.value);
+  const res = Number(document.getElementById("resolution")?.value);
+
+  const repRaw = document.getElementById("repeatability")?.value ?? "";
+  const rep = repRaw === "" ? null : Number(repRaw);
+
+  const k = Number(document.getElementById("kfactor")?.value || 2);
+  const units = (document.getElementById("units")?.value || "").trim();
+  const unitTxt = units ? ` ${units}` : "";
+
+  const err = validateInputs(acc, res, rep, k);
+  if (err) { alert(err); return; }
+
+  resultEl.innerText = "Calculating…";
 
   let credit;
   try {
     credit = await consumeCredit(code);
   } catch (e) {
+    resultEl.innerText = "";
     alert("Request failed. Open Console for details.");
     return;
   }
 
   if (!credit.ok) {
+    resultEl.innerText = "";
     alert(credit.error || "No credits remaining");
     return;
   }
 
-  const out = checkAcceptance(N, M, T, inclusive);
+  const out = calcUncertainty(acc, res, rep, k);
 
-  document.getElementById("result").innerText =
-    `${out.decision}\n${out.detail}\nAllowed range: ${out.lower} to ${out.upper}\nCredits left: ${credit.credits_remaining}`;
+  const uc = round(out.uc);
+  const U  = round(out.U);
+
+  resultEl.innerText =
+    `Combined standard uncertainty (u_c): ${uc}${unitTxt}\n` +
+    `Expanded uncertainty (k=${k}): ±${U}${unitTxt}\n\n` +
+    `Details:\n` +
+    `u_accuracy = ${round(out.uAcc)}${unitTxt} (accuracy/√3)\n` +
+    `u_resolution = ${round(out.uRes)}${unitTxt} (resolution/√12)\n` +
+    `u_repeatability = ${rep === null ? "N/A" : round(out.uRep)}${unitTxt}\n\n` +
+    `Credits left: ${credit.credits_remaining}\n` +
+    `Report statement: Expanded uncertainty (k=${k}): ±${U}${unitTxt}`;
 }
-
-
 </script>
 
 </body>

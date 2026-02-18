@@ -168,7 +168,7 @@ async function onCheckClick() {
     `Details:\n` +
     `u_accuracy = ${round(out.uAcc)}${unitTxt} (accuracy/√3)\n` +
     `u_resolution = ${round(out.uRes)}${unitTxt} (resolution/√12)\n` +
-    `u_repeatability = ${rep === null ? "N/A" : round(out.uRep)}${unitTxt}\n\n` +
+   `u_repeatability = ${ rep === null ? "N/A" : round(out.uRep) + unitTxt}\n\n` +
     `Credits left: ${credit.credits_remaining}\n` +
     `Report statement: Expanded uncertainty (k=${k}): ±${U}${unitTxt}`;
 }

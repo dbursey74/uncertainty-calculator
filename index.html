@@ -8,24 +8,26 @@
 
 <h2>Measurement Uncertainty Calculator</h2>
 <p>Quickly compute combined and expanded uncertainty (k-factor) for documentation and engineering use.</p>
-<label>Access Code:</label><br>
-<input id="code"><br><br>
 
-<label>Nominal Value:</label><br>
-<input id="nominal"><br><br>
+<label>Access Code</label>
+<input id="code" placeholder="Enter your access code" />
 
-<label>Measured Value:</label><br>
-<input id="measured"><br><br>
+<label>Accuracy (±)</label>
+<input id="accuracy" type="number" step="any" placeholder="e.g., 0.06" />
 
-<label>Tolerance (±):</label><br>
-<input id="tol"><br><br>
+<label>Resolution</label>
+<input id="resolution" type="number" step="any" placeholder="e.g., 0.01" />
 
-<label>
-  <input type="checkbox" id="inclusive" checked>
-  Inclusive boundaries
-</label><br><br>
+<label>Repeatability (optional)</label>
+<input id="repeatability" type="number" step="any" placeholder="e.g., 0.02 (leave blank if none)" />
 
-<button onclick="onCheckClick()">Check Acceptance</button>
+<label>Coverage factor (k)</label>
+<input id="kfactor" type="number" step="any" value="2" />
+
+<label>Units (optional)</label>
+<input id="units" placeholder="e.g., °C, mm, psi" />
+
+<button onclick="onCheckClick()">Calculate &amp; Consume Credit</button>
 
 <pre id="result"></pre>
 
